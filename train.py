@@ -157,7 +157,7 @@ def main():
     vae_type = cfg.model.motion_vae.target.split(".")[-1].lower().replace("vae", "")
     # strict load vae model
     if cfg.TRAIN.PRETRAINED_VAE:
-        logger.info("Loading pretrain vae from {}".format(cfg.TRAIN.PRETRAINED_VAE))
+        logger.info(f"Loading pretrain vae from {cfg.TRAIN.PRETRAINED_VAE}")
         state_dict = torch.load(cfg.TRAIN.PRETRAINED_VAE, map_location="cpu")[
             "state_dict"
         ]
@@ -172,7 +172,7 @@ def main():
         model.vae.load_state_dict(vae_dict, strict=True)
 
     if cfg.TRAIN.PRETRAINED:
-        logger.info("Loading pretrain mode from {}".format(cfg.TRAIN.PRETRAINED))
+        logger.info(f"Loading pretrain mode from {cfg.TRAIN.PRETRAINED}")
         logger.info("Attention! VAE will be recovered")
         state_dict = torch.load(cfg.TRAIN.PRETRAINED, map_location="cpu")["state_dict"]
         # remove mismatched and unused params

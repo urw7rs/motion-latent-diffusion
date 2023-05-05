@@ -1,10 +1,12 @@
 import os
 
-import pytorch_lightning as pl
 import torch
-from omegaconf import OmegaConf
+
+import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
+
+from omegaconf import OmegaConf
 
 from mld.callback import ProgressLogger
 from mld.config import parse_args

@@ -1,12 +1,12 @@
 import os
-from pprint import pformat
+
+import torch
 
 import pytorch_lightning as pl
-import torch
-from omegaconf import OmegaConf
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
-# from pytorch_lightning.strategies.ddp import DDPStrategy
+
+from omegaconf import OmegaConf
 
 from mld.callback import ProgressLogger
 from mld.config import parse_args
@@ -33,18 +33,21 @@ def main():
                     cfg = OmegaConf.load(os.path.join(resume, item))
                     cfg.TRAIN = backcfg
                     break
-            checkpoints = sorted(os.listdir(os.path.join(
-                resume, "checkpoints")),
-                                 key=lambda x: int(x[6:-5]),
-                                 reverse=True)
+            checkpoints = sorted(
+                os.listdir(os.path.join(resume, "checkpoints")),
+                key=lambda x: int(x[6:-5]),
+                reverse=True,
+            )
             for checkpoint in checkpoints:
                 if "epoch=" in checkpoint:
                     cfg.TRAIN.PRETRAINED = os.path.join(
-                        resume, "checkpoints", checkpoint)
+                        resume, "checkpoints", checkpoint
+                    )
                     break
             if os.path.exists(os.path.join(resume, "wandb")):
-                wandb_list = sorted(os.listdir(os.path.join(resume, "wandb")),
-                                    reverse=True)
+                wandb_list = sorted(
+                    os.listdir(os.path.join(resume, "wandb")), reverse=True
+                )
                 for item in wandb_list:
                     if "run-" in item:
                         cfg.LOGGER.WANDB.RESUME_ID = item.split("-")[-1]
@@ -58,7 +61,6 @@ def main():
     if cfg.ACCELERATOR == "gpu":
         os.environ["PYTHONWARNINGS"] = "ignore"
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        # os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(x) for x in cfg.DEVICE)
 
     # tensorboard logger and wandb logger
     loggers = []
@@ -75,17 +77,15 @@ def main():
         )
         loggers.append(wandb_logger)
     if cfg.LOGGER.TENSORBOARD:
-        tb_logger = pl_loggers.TensorBoardLogger(save_dir=cfg.FOLDER_EXP,
-                                                 sub_dir="tensorboard",
-                                                 version="",
-                                                 name="")
+        tb_logger = pl_loggers.TensorBoardLogger(
+            save_dir=cfg.FOLDER_EXP, sub_dir="tensorboard", version="", name=""
+        )
         loggers.append(tb_logger)
     logger.info(OmegaConf.to_yaml(cfg))
 
     # create dataset
     datasets = get_datasets(cfg, logger=logger)
-    logger.info("datasets module {} initialized".format("".join(
-        cfg.TRAIN.DATASETS)))
+    logger.info("datasets module {} initialized".format("".join(cfg.TRAIN.DATASETS)))
 
     # create model
     model = get_model(cfg, datasets[0])
@@ -120,7 +120,6 @@ def main():
     callbacks = [
         pl.callbacks.RichProgressBar(),
         ProgressLogger(metric_monitor=metric_monitor),
-        # ModelCheckpoint(dirpath=os.path.join(cfg.FOLDER_EXP,'checkpoints'),filename='latest-{epoch}',every_n_epochs=1,save_top_k=1,save_last=True,save_on_train_epoch_end=True),
         ModelCheckpoint(
             dirpath=os.path.join(cfg.FOLDER_EXP, "checkpoints"),
             filename="{epoch}",
@@ -135,7 +134,6 @@ def main():
     logger.info("Callbacks initialized")
 
     if len(cfg.DEVICE) > 1:
-        # ddp_strategy = DDPStrategy(find_unused_parameters=False)
         ddp_strategy = "ddp"
     else:
         ddp_strategy = None
@@ -147,7 +145,6 @@ def main():
         accelerator=cfg.ACCELERATOR,
         devices=cfg.DEVICE,
         strategy=ddp_strategy,
-        # move_metrics_to_cpu=True,
         default_root_dir=cfg.FOLDER_EXP,
         log_every_n_steps=cfg.LOGGER.VAL_EVERY_STEPS,
         deterministic=False,
@@ -159,16 +156,16 @@ def main():
     )
     logger.info("Trainer initialized")
 
-    vae_type = cfg.model.motion_vae.target.split(".")[-1].lower().replace(
-        "vae", "")
+    vae_type = cfg.model.motion_vae.target.split(".")[-1].lower().replace("vae", "")
     # strict load vae model
     if cfg.TRAIN.PRETRAINED_VAE:
-        logger.info("Loading pretrain vae from {}".format(
-            cfg.TRAIN.PRETRAINED_VAE))
-        state_dict = torch.load(cfg.TRAIN.PRETRAINED_VAE,
-                                map_location="cpu")["state_dict"]
+        logger.info(f"Loading pretrain vae from {cfg.TRAIN.PRETRAINED_VAE}")
+        state_dict = torch.load(cfg.TRAIN.PRETRAINED_VAE, map_location="cpu")[
+            "state_dict"
+        ]
         # extract encoder/decoder
         from collections import OrderedDict
+
         vae_dict = OrderedDict()
         for k, v in state_dict.items():
             if k.split(".")[0] == "vae":
@@ -177,11 +174,9 @@ def main():
         model.vae.load_state_dict(vae_dict, strict=True)
 
     if cfg.TRAIN.PRETRAINED:
-        logger.info("Loading pretrain mode from {}".format(
-            cfg.TRAIN.PRETRAINED))
+        logger.info(f"Loading pretrain mode from {cfg.TRAIN.PRETRAINED}")
         logger.info("Attention! VAE will be recovered")
-        state_dict = torch.load(cfg.TRAIN.PRETRAINED,
-                                map_location="cpu")["state_dict"]
+        state_dict = torch.load(cfg.TRAIN.PRETRAINED, map_location="cpu")["state_dict"]
         # remove mismatched and unused params
         from collections import OrderedDict
 
@@ -193,17 +188,14 @@ def main():
 
     # fitting
     if cfg.TRAIN.RESUME:
-        trainer.fit(model,
-                    datamodule=datasets[0],
-                    ckpt_path=cfg.TRAIN.PRETRAINED)
+        trainer.fit(model, datamodule=datasets[0], ckpt_path=cfg.TRAIN.PRETRAINED)
     else:
         trainer.fit(model, datamodule=datasets[0])
 
     # checkpoint
     checkpoint_folder = trainer.checkpoint_callback.dirpath
     logger.info(f"The checkpoints are stored in {checkpoint_folder}")
-    logger.info(
-        f"The outputs of this experiment are stored in {cfg.FOLDER_EXP}")
+    logger.info(f"The outputs of this experiment are stored in {cfg.FOLDER_EXP}")
 
     # end
     logger.info("Training ends!")

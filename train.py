@@ -1,13 +1,10 @@
 import os
-from pprint import pformat
 
 import pytorch_lightning as pl
 import torch
 from omegaconf import OmegaConf
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
-
-# from pytorch_lightning.strategies.ddp import DDPStrategy
 
 from mld.callback import ProgressLogger
 from mld.config import parse_args
@@ -62,7 +59,6 @@ def main():
     if cfg.ACCELERATOR == "gpu":
         os.environ["PYTHONWARNINGS"] = "ignore"
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        # os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(x) for x in cfg.DEVICE)
 
     # tensorboard logger and wandb logger
     loggers = []
@@ -122,7 +118,6 @@ def main():
     callbacks = [
         pl.callbacks.RichProgressBar(),
         ProgressLogger(metric_monitor=metric_monitor),
-        # ModelCheckpoint(dirpath=os.path.join(cfg.FOLDER_EXP,'checkpoints'),filename='latest-{epoch}',every_n_epochs=1,save_top_k=1,save_last=True,save_on_train_epoch_end=True),
         ModelCheckpoint(
             dirpath=os.path.join(cfg.FOLDER_EXP, "checkpoints"),
             filename="{epoch}",
@@ -137,7 +132,6 @@ def main():
     logger.info("Callbacks initialized")
 
     if len(cfg.DEVICE) > 1:
-        # ddp_strategy = DDPStrategy(find_unused_parameters=False)
         ddp_strategy = "ddp"
     else:
         ddp_strategy = None
@@ -149,7 +143,6 @@ def main():
         accelerator=cfg.ACCELERATOR,
         devices=cfg.DEVICE,
         strategy=ddp_strategy,
-        # move_metrics_to_cpu=True,
         default_root_dir=cfg.FOLDER_EXP,
         log_every_n_steps=cfg.LOGGER.VAL_EVERY_STEPS,
         deterministic=False,
